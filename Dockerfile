@@ -2,12 +2,13 @@ FROM python:3.10-slim
 
 WORKDIR /app
 
+# Cài thư viện cần thiết
 RUN pip install flask docker requests
 
-# ==== GENERATE APP =====
+# Tạo app.py
 RUN cat << 'EOF' > app.py
 from flask import Flask, request, render_template_string, redirect, session
-import docker, random, requests, os
+import docker, random, requests
 
 app = Flask(__name__)
 app.secret_key = "pluscloud-super-key"
@@ -15,7 +16,8 @@ app.secret_key = "pluscloud-super-key"
 USERNAME = "pluscloud"
 PASSWORD = "admin123"
 
-client = docker.from_env()
+# Kết nối Docker host
+client = docker.DockerClient(base_url='unix://var/run/docker.sock')
 CONTAINERS = {}
 
 def get_public_ipv4():
@@ -39,7 +41,6 @@ body { font-family: Arial; background:#f2f6ff; margin:0; padding:0; }
 </style>
 </head>
 <body>
-
 <div class="topbar">PlusCloud Panel</div>
 
 <div class="card">
@@ -145,5 +146,4 @@ if __name__ == "__main__":
 EOF
 
 EXPOSE 10000
-
 CMD ["python3", "app.py"]
