@@ -1,13 +1,19 @@
 #!/bin/bash
 
-echo "🚀 Container started"
+echo "☁️ Cloud Shell booting..."
 
-# Khởi động tmate (SSH)
+# tmate SSH
 tmate -F &
 sleep 2
 
-# Chạy web terminal
+echo "🔐 TMATE SESSION:"
+tmate show-messages || true
+echo ""
+
+# ttyd không UI, full screen
 ttyd \
   --port 10000 \
-  --index /opt/ttyd/style.css \
+  --interface 0.0.0.0 \
+  --index /opt/ttyd/index.html \
+  --writable \
   bash
