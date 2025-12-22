@@ -4,148 +4,125 @@ ENV DEBIAN_FRONTEND=noninteractive
 ENV TERM=xterm-256color
 ENV TZ=Asia/Ho_Chi_Minh
 
-# ===== PACKAGES =====
+# ====== CÀI GÓI ======
 RUN apt update && apt install -y \
-  curl wget nano htop tmux bash ca-certificates tzdata \
-  && rm -rf /var/lib/apt/lists/*
+    curl wget nano htop tmux bash ca-certificates tzdata \
+    && rm -rf /var/lib/apt/lists/*
 
-# ===== TTYD =====
+# ====== CÀI TTYD ======
 RUN wget https://github.com/tsl0922/ttyd/releases/download/1.7.7/ttyd.x86_64 \
-  -O /usr/bin/ttyd && chmod +x /usr/bin/ttyd
+    -O /usr/bin/ttyd && chmod +x /usr/bin/ttyd
 
-# ===== PERSIST =====
+# ====== THƯ MỤC LƯU SESSION (PERSIST) ======
 RUN mkdir -p /data/tmux
 ENV TMUX_TMPDIR=/data/tmux
 
-# ===== PANEL HTML (PTERO STYLE) =====
-RUN cat <<'EOF' > /panel.html
-<!DOCTYPE html>
-<html>
-<head>
-<meta charset="utf-8">
-<title>Cloud Panel</title>
-<style>
-body{
-  margin:0;
-  font-family:Inter,system-ui;
-  background:linear-gradient(120deg,#ede9fe,#f5f3ff,#faf5ff);
-  background-size:300% 300%;
-  animation:bg 40s ease infinite;
-}
-@keyframes bg{
-  0%{background-position:0% 50%}
-  50%{background-position:100% 50%}
-  100%{background-position:0% 50%}
-}
-.card{
-  width:420px;
-  margin:80px auto;
-  background:rgba(255,255,255,.75);
-  backdrop-filter:blur(18px);
-  border-radius:16px;
-  padding:24px;
-  box-shadow:0 20px 40px rgba(0,0,0,.15);
-}
-h1{margin:0 0 12px;color:#6d28d9}
-button{
-  width:100%;
-  padding:12px;
-  border:0;
-  border-radius:10px;
-  font-size:15px;
-  cursor:pointer;
-}
-.on{background:#7c3aed;color:#fff}
-.off{background:#e5e7eb}
-.status{margin-top:12px;font-size:14px}
-</style>
-</head>
-<body>
-<div class="card">
-  <h1>🟣 Cloud Terminal</h1>
-  <button class="on" onclick="fetch('/on')">▶ Start Terminal</button><br><br>
-  <button class="off" onclick="fetch('/off')">⏹ Stop Terminal</button>
-  <div class="status" id="st">Status: unknown</div>
-</div>
-
-<script>
-setInterval(()=>{
-  fetch('/status').then(r=>r.text()).then(t=>{
-    document.getElementById('st').innerText="Status: "+t;
-  })
-},1000);
-</script>
-</body>
-</html>
-EOF
-
-# ===== CSS TERMINAL =====
+# ====== CSS + AWS FAKE DASHBOARD ======
 RUN cat <<'EOF' > /style.css
-html,body{
-  margin:0;width:100%;height:100%;overflow:hidden;
-  font-family:Inter,system-ui;
-}
-.header,.toolbar,.footer,.title{display:none!important}
-
-.xterm{
-  margin-top:46px;
-  background:rgba(255,255,255,.65)!important;
-  backdrop-filter:blur(16px);
-  border-radius:14px;
-  padding:14px;
+/* ===== AUTO LIGHT / DARK THEO GIỜ VN ===== */
+:root {
+  --bg-light: #f4f6f8;
+  --bg-dark: #0f172a;
+  --glass-light: rgba(255,255,255,0.65);
+  --glass-dark: rgba(15,23,42,0.7);
 }
 
-/* TOP CLOCK */
-#clock{
-  position:fixed;
-  top:8px;right:16px;
-  background:rgba(0,0,0,.65);
-  color:#fff;
-  padding:6px 12px;
-  border-radius:999px;
-  font-size:13px;
-  z-index:9999;
+html, body {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  font-family: Inter, system-ui, Arial, sans-serif;
+  background: var(--bg-light);
+  transition: background 1.5s ease;
+}
+
+/* dark mode tự động */
+body.dark {
+  background: var(--bg-dark);
+}
+
+/* Ẩn UI ttyd gốc */
+.header,.toolbar,.footer,.title { display:none!important }
+
+/* ===== AWS STYLE TERMINAL ===== */
+.xterm {
+  margin-top: 48px;
+  background: var(--glass-light) !important;
+  backdrop-filter: blur(18px) saturate(160%);
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+  border-radius: 12px;
+  padding: 14px;
+  box-shadow: 0 20px 40px rgba(0,0,0,.15);
+}
+
+body.dark .xterm {
+  background: var(--glass-dark) !important;
+  color: #cbd5e1 !important;
+}
+
+/* ===== FAKE AWS DASHBOARD TOP BAR ===== */
+#awsbar {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: 42px;
+  background: linear-gradient(90deg,#232f3e,#1b2635);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  padding: 0 14px;
+  font-size: 13px;
+  z-index: 9999;
+}
+
+#awsbar span {
+  margin-right: 18px;
+  opacity: 0.9;
+}
+
+#awsbar b {
+  color: #ff9900;
 }
 EOF
 
-# ===== JS CLOCK + COUNTER =====
+# ====== JS AUTO DARK MODE THEO GIỜ VN ======
 RUN cat <<'EOF' > /inject.js
-let start=Date.now();
-setInterval(()=>{
-  const now=new Date();
-  const diff=Math.floor((Date.now()-start)/1000);
-  const h=String(Math.floor(diff/3600)).padStart(2,'0');
-  const m=String(Math.floor(diff%3600/60)).padStart(2,'0');
-  const s=String(diff%60).padStart(2,'0');
-  document.getElementById('clock').innerText=
-    now.toLocaleTimeString('vi-VN')+" | "+h+":"+m+":"+s;
-},1000);
+(function () {
+  const hour = new Date().getHours(); // giờ VN do TZ
+  if (hour >= 18 || hour < 6) {
+    document.body.classList.add("dark");
+  }
 
-const c=document.createElement("div");
-c.id="clock";
-document.body.appendChild(c);
+  const bar = document.createElement("div");
+  bar.id = "awsbar";
+  bar.innerHTML = `
+    <span><b>AWS</b> CloudShell</span>
+    <span>Region: ap-southeast-1</span>
+    <span>Session: shared</span>
+    <span>Status: Running</span>
+  `;
+  document.body.appendChild(bar);
+})();
 EOF
 
-# ===== START SCRIPT =====
+# ====== START SCRIPT ======
 RUN cat <<'EOF' > /start.sh
 #!/bin/bash
-echo "🚀 Cloud Shell + Panel"
+echo "☁️ AWS-Style CloudShell booting (shared session)..."
 
-# tmux session
+# ---- TMUX SESSION LƯU LÂU DÀI ----
 if ! tmux has-session -t cloud 2>/dev/null; then
   tmux new-session -d -s cloud bash
 fi
 
-# simple panel api
-( while true; do
-  echo -e "HTTP/1.1 200 OK\n\nRUNNING" | nc -l -p 9001 -q 1
-done ) &
-
-# ttyd
+# ---- CHẠY TTYD (1 PHIÊN CHUNG) ----
 ttyd \
   --port 10000 \
   --interface 0.0.0.0 \
-  --readonly \
+  --writable \
+  --client-option theme=light \
+  --client-option fontSize=14 \
+  --client-option rendererType=canvas \
   --client-option customCSS=/style.css \
   --client-option customJS=/inject.js \
   tmux attach -t cloud
@@ -153,6 +130,8 @@ EOF
 
 RUN chmod +x /start.sh
 
+# ====== VOLUME LƯU SESSION ======
 VOLUME ["/data"]
+
 EXPOSE 10000
 CMD ["/start.sh"]
